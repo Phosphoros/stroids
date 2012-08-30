@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>asteroids</title>
+        <style>
+            #canvas
+            {
+                background-color: black;
+            }
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0px;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas" width="600" height="600">
+            Dein Browser kann diese Grafik nicht darstellen.
+        </canvas>
+        <script type="text/javascript" src="vector.js"></script>
+        <script type="text/javascript">
+            var WIDTH;
+            var HEIGHT;
+            var ctx;
+            var canvas;
+            var mouse_x = 300, mouse_y = 300;
+            var mouseState = false;
+            var keyState = new Array();
+            
+            var polygons;
+            var asteroids = new Array();
+            var asteroid_forms = new Array();
+            var asteroid1 = new Array();
+            var asteroid2 = new Array();
+            var asteroid3 = new Array();
+            var ufo = new Array();
+            //polygons[0] = new Array($V(0,0),$V(0,100),$V(100,100),$V(100,0),$V(0,0));
+            polygons  = [[6,0,0,3,0,5,6,6,0,9,3,13,6,11,12,13,16,8,16,3,10,3,12,0,6,0]];
+            asteroid1 = [[6,0,0,3,0,5,6,6,0,9,3,13,6,11,12,13,16,8,16,3,10,3,12,0,6,0]]; // canvas-coordinates
+            asteroid2 = [[4,0,0,4,5,6,1,9,4,15,10,12,12,15,17,11,14,7,17,5,12,0,9,3,4,0]]; // canvas-coordinates
+            asteroid3 = [[4,0,0,4,2,7,0,10,6,14,11,14,16,11,16,4,12,0,8,4,4,0]];
+            
+            asteroid_forms = [asteroid1,asteroid2,asteroid3];
+            
+            //ufo[0] = new Array($V(3,0),$V(0,2),$V(3,4),$V(9,4),$V(12,2),$V(9,0),$V(3,0));
+            //ufo[1] = new Array($V(0,2),$V(12,2));
+            //ufo[2] = new Array($V(4,4),$V(5,6),$V(7,6),$V(8,4));
+            ufo = [
+                    [3,2,0,4,3,6,9,6,12,4,9,3,3,2],
+                    [0,4,12,4],
+                    [4,2,5,0,7,0,8,2]
+                ];
+            ship = [
+                    [10,15,5,0,0,15],
+                    [1,12,9,12]
+                ];
+
+            //function particle(x,y,vx,vy)
+            //{
+            //    return {
+            //        position: $V(x,y),
+            //        acceleration: $V(vx,vy),
+            //        draw: function()
+            //        {
+            //            circle(this.position.x,this.position.y,1,'#FFF');
+            //        }
+            //    };
+            //}
+            
+            
+            function get_polygon_center(points)
+            { 
+                var center = [0,0];
+                for(var i = 0; i < points.length; i+=2)
+                {
+                    center[0] += points[i];
+                    center[1] += points[i+1];
+                }
+                center[0] /= (points.length/2);
+                center[1] /= (points.length/2);
+                return center;
+            }
+            
+            function asteroid(x,y,elements,size,velocity,center)
+            {
+                return {
+                    x: x,
+                    y: y,
+                    size: size,
+                    elements: elements,
+                    velocity: velocity,
+                    center: center
+                }
+            }
+            
+            function drawObject(x,y,object,size,center)
+            {
+  
+                ctx.strokeStyle = '#FFF';
+                ctx.fillStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                var elements = object;
+                
+                //for(var i=0; i<elements.length;i++)
+                //{
+                //    for(var j=0; j<elements[i].length;j++)
+                //    {
+                //        elements[i][j].x = ( elements[i][j].x * Math.cos(angle) ) - ( elements[i][j].y * Math.sin(angle) );
+                //        elements[i][j].y = ( elements[i][j].x * Math.sin(angle) ) + ( elements[i][j].y * Math.cos(angle) );
+                //    }
+                //}
+
+                ctx.save();
+                //ctx.translate(-(size*(x+center[0])), -(size*(y+center[1])));
+                //ctx.scale(size, size);       
+                
+                for(var i=0; i<elements.length;i++)
+                {
+                    ctx.beginPath();
+                    for(var j=0; j<elements[i].length;j+=2)
+                    {
+                        //var a = ( elements[i][j] * Math.cos(angle) ) - ( elements[i][j+1] * Math.sin(angle) );
+                        //var b = ( elements[i][j] * Math.sin(angle) ) + ( elements[i][j+1] * Math.cos(angle) );
+                        
+                        if(j==0)
+                            //ctx.moveTo(a+x,b+y);
+                            ctx.moveTo(x+elements[i][j],y+elements[i][j+1]);
+                        else
+                            //ctx.lineTo(a+x,b+y);
+                            ctx.lineTo(x+elements[i][j],y+elements[i][j+1]);
+                    }
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            function scale(elements,factor,center)
+            {
+                var e = elements;
+                var new_elements = new Array();
+                for(var j=0; j<e.length;j++)
+                {
+                    new_elements[j] = new Array();
+                    for(var k=0; k<e[j].length;k+=2)
+                    {
+                        var x = e[j][k];
+                        var y = e[j][k+1];
+                        
+                        var dx = center[0]-x;
+                        var dy = center[1]-y;
+                        
+                        dx*=factor;
+                        dy*=factor;
+                        
+                        new_elements[j][k] = e[j][k]+dx;
+                        new_elements[j][k+1] = e[j][k+1]+dy;
+                    }
+                }
+                return new_elements;
+            }
+            
+            function init() {
+                canvas = document.getElementById("canvas");
+                ctx = canvas.getContext("2d");
+                WIDTH = canvas.width;
+                HEIGHT = canvas.height;
+                
+                
+                if(!canvas.getContext){
+                    return;
+                }
+
+                var offsetX=0, offsetY=0;
+
+                for(var obj = canvas; obj != null; obj = obj.offsetParent) {
+                    offsetX += obj.scrollLeft - obj.offsetLeft;
+                    offsetY += obj.scrollTop - obj.offsetTop;
+                }
+
+                canvas.addEventListener("mousemove", function(e) {
+                    mouse_x = e.x + offsetX;
+                    mouse_y = e.y + offsetY;
+                }, true);
+
+                canvas.addEventListener("mouseup", function(e) {
+                    if(e.button == 0) mouseState = false;
+                }, true);
+
+                canvas.addEventListener("mousedown", function(e) {
+                    if(e.button == 0) mouseState = true;
+                }, true);
+                
+                for( var i = 0; i < 10; i++)
+                {
+                    var x = Math.floor((Math.random()*(WIDTH-10)+10));
+                    var y = Math.floor((Math.random()*(HEIGHT-10)+10));
+                    var size = Math.floor((Math.random()*2)+3);
+                    //var angle = Math.floor((Math.random()*360));
+                    //console.debug(x+"|"+y);
+                    var elements = asteroid_forms[Math.floor((Math.random()*3))];
+                    var center = get_polygon_center(elements[0]);
+                    var velocity = [Math.floor((Math.random()*100)-50)*0.01,Math.floor((Math.random()*100)-50)*0.01];
+                    elements = scale(elements,size,center);
+                    
+                    asteroids.push(new asteroid(x,y,elements,size,velocity,center));
+                }
+                //for( var i = 0; i < asteroids.length; i++)
+                //{
+                //    asteroids[i].center = get_polygon_center(asteroids[i].elements[0]);
+                //}
+                
+                //console.debug(get_polygon_center(asteroid1[0]));
+
+                setInterval(draw, 10);
+                setInterval(update, 10);
+                return true;
+            }
+
+            function circle(x,y,r,color) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI*2, true);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function clear() {
+                ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            }
+
+            document.onkeydown = function (e) {
+                keyState[e.which] = true;
+            };
+
+            document.onkeyup = function (e) {
+                keyState[e.which] = false;
+            };
+            
+            function update()
+            {
+                for(var i=0;i<asteroids.length;i++)
+                {
+                    if(asteroids[i].x > WIDTH)
+                    {
+                        asteroids[i].x = 0;
+                    }
+                    else if(asteroids[i].x <= 0)
+                    {
+                        asteroids[i].x = WIDTH;
+                    }
+                    else if(asteroids[i].y > HEIGHT)
+                    {
+                        asteroids[i].y = 0;
+                    }
+                    else if(asteroids[i].y < 0)
+                    {
+                        asteroids[i].y = HEIGHT;
+                    }
+                    asteroids[i].x += asteroids[i].velocity[0];
+                    asteroids[i].y += asteroids[i].velocity[1];
+                }
+            }
+
+            function draw() {
+                clear();
+
+                //drawObject(10,50,polygons);
+                //drawObject(10,30,ufo);
+                
+                if(mouseState == true)
+                {
+                   
+                }
+
+                if(keyState[80] == true) {
+                    
+                }
+
+                for(var i=0;i<asteroids.length;i++)
+                {                    
+                    drawObject(asteroids[i].x, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);    
+                    drawObject(asteroids[i].x+WIDTH, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x-WIDTH, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x, asteroids[i].y-HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    
+                    drawObject(asteroids[i].x+WIDTH, asteroids[i].y-HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x-WIDTH, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x+HEIGHT, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    drawObject(asteroids[i].x-HEIGHT, asteroids[i].y-HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                }
+
+                ctx.fillStyle = '#3C6';
+                ctx.fillText("asteroids: "+asteroids.length, 10, 20);
+            }
+            init();
+            //for(var i = 0; i<asteroids.length;i++)
+            //{
+            //    console.debug(asteroids[i]);
+            //}
+        </script>
+    </body>
+</html>
