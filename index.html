@@ -31,10 +31,12 @@
             
             var polygons;
             var asteroids = new Array();
+            var player;
             var asteroid_forms = new Array();
             var asteroid1 = new Array();
             var asteroid2 = new Array();
             var asteroid3 = new Array();
+            var asteroidCount = 5;
             var ufo = new Array();
             //polygons[0] = new Array($V(0,0),$V(0,100),$V(100,100),$V(100,0),$V(0,0));
             polygons  = [[6,0,0,3,0,5,6,6,0,9,3,13,6,11,12,13,16,8,16,3,10,3,12,0,6,0]];
@@ -53,9 +55,13 @@
                     [4,2,5,0,7,0,8,2]
                 ];
             ship = [
-                    [10,15,5,0,0,15],
-                    [1,12,9,12]
+                    [0,0,15,5,0,10],
+                    [3,1,3,9]
                 ];
+            //ship = [
+            //        [10,15,5,0,0,15],
+            //        [1,12,9,12]
+            //    ];
 
             //function particle(x,y,vx,vy)
             //{
@@ -91,53 +97,95 @@
                     size: size,
                     elements: elements,
                     velocity: velocity,
-                    center: center
+                    center: center,
+                    angle:0
                 }
             }
             
-            function drawObject(x,y,object,size,center)
+            function player(x,y,center,velocity)
             {
-  
+                return {
+                    x:x,
+                    y:y,
+                    angle:-90,
+                    center:[7,5],
+                    velocity: velocity,
+                    elements: ship
+                }
+            }
+            
+            function drawObject(x,y,object,size,center,angle)
+            {
                 ctx.strokeStyle = '#FFF';
                 ctx.fillStyle = '#000';
                 ctx.lineWidth = 1;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                var elements = object;
+                var tmp_elements = object;
                 
-                //for(var i=0; i<elements.length;i++)
+                //console.debug(i);
+                
+                //for(var i=0; i<tmp_elements.length;i++)
                 //{
-                //    for(var j=0; j<elements[i].length;j++)
+                //    for(var j=0; j<tmp_elements[i].length;j+=2)
                 //    {
-                //        elements[i][j].x = ( elements[i][j].x * Math.cos(angle) ) - ( elements[i][j].y * Math.sin(angle) );
-                //        elements[i][j].y = ( elements[i][j].x * Math.sin(angle) ) + ( elements[i][j].y * Math.cos(angle) );
+                //        tmp_elements[i][j] = ( tmp_elements[i][j] * Math.cos(angle*(180/Math.PI)) ) - ( tmp_elements[i][j+1] * Math.sin(angle*(180/Math.PI)) );
+                //        tmp_elements[i][j+1] = ( tmp_elements[i][j] * Math.sin(angle*(180/Math.PI)) ) + ( tmp_elements[i][j+1] * Math.cos(angle*(180/Math.PI)) );
                 //    }
                 //}
 
                 ctx.save();
-                //ctx.translate(-(size*(x+center[0])), -(size*(y+center[1])));
-                //ctx.scale(size, size);       
                 
-                for(var i=0; i<elements.length;i++)
+                ctx.translate(x-center[0], y-center[1]);
+                ctx.rotate(angle*(Math.PI/180));
+                ctx.translate(-center[0], -center[1]);
+                //ctx.translate(x, y);
+                //ctx.scale(size, size);       
+                for(var i=0; i<tmp_elements.length;i++)
                 {
                     ctx.beginPath();
-                    for(var j=0; j<elements[i].length;j+=2)
+                    for(var j=0; j<tmp_elements[i].length;j+=2)
                     {
-                        //var a = ( elements[i][j] * Math.cos(angle) ) - ( elements[i][j+1] * Math.sin(angle) );
-                        //var b = ( elements[i][j] * Math.sin(angle) ) + ( elements[i][j+1] * Math.cos(angle) );
+                        //var a = ( tmp_elements[i][j] * Math.cos(angle*(180/Math.PI)) ) - ( tmp_elements[i][j+1] * Math.sin(angle*(180/Math.PI)) );
+                        //var b = ( tmp_elements[i][j] * Math.sin(angle*(180/Math.PI)) ) + ( tmp_elements[i][j+1] * Math.cos(angle*(180/Math.PI)) );
                         
                         if(j==0)
                             //ctx.moveTo(a+x,b+y);
-                            ctx.moveTo(x+elements[i][j],y+elements[i][j+1]);
+                            ctx.moveTo(tmp_elements[i][j],tmp_elements[i][j+1]);
                         else
                             //ctx.lineTo(a+x,b+y);
-                            ctx.lineTo(x+elements[i][j],y+elements[i][j+1]);
+                            ctx.lineTo(tmp_elements[i][j],tmp_elements[i][j+1]);
                     }
                     ctx.stroke();
                     ctx.closePath();
                 }
+                //ctx.translate(-x, -y);
+                //ctx.translate(x, y);
+                //ctx.translate(-(center.x+x), -(center.y+y));
                 ctx.fill();
                 ctx.restore();
+            }
+            
+            function calculatePolygonSize(polygon)
+            {
+                var min_x = 0;
+                var min_y = 0;
+                var max_x = 0;
+                var max_y = 0;
+                
+                for(var i=0;i<polygon.length;i++)
+                {
+                    for(var j=0;j<polygon[i].length;j+=2)
+                    {
+                        var x = polygon[i][j];
+                        var y = polygon[i][j+1];
+                        min_x = min_x > x ? x : min_x;
+                        min_y = min_y > y ? y : min_y;
+                        max_x = max_x < x ? x : max_x;
+                        max_y = max_y < y ? y : max_y;                        
+                    }
+                }
+                return {width: max_x-min_x, height: max_y-min_y}
             }
             
             function scale(elements,factor,center)
@@ -170,7 +218,7 @@
                 ctx = canvas.getContext("2d");
                 WIDTH = canvas.width;
                 HEIGHT = canvas.height;
-                
+                //ctx.setTransform(1,0,0,1,WIDTH/2,HEIGHT/2);
                 
                 if(!canvas.getContext){
                     return;
@@ -196,7 +244,7 @@
                     if(e.button == 0) mouseState = true;
                 }, true);
                 
-                for( var i = 0; i < 10; i++)
+                for( var i = 0; i < asteroidCount; i++)
                 {
                     var x = Math.floor((Math.random()*(WIDTH-10)+10));
                     var y = Math.floor((Math.random()*(HEIGHT-10)+10));
@@ -210,15 +258,21 @@
                     
                     asteroids.push(new asteroid(x,y,elements,size,velocity,center));
                 }
-                //for( var i = 0; i < asteroids.length; i++)
-                //{
-                //    asteroids[i].center = get_polygon_center(asteroids[i].elements[0]);
-                //}
+                for( var i = 0; i < asteroids.length; i++)
+                {
+                    var dimensions = calculatePolygonSize(asteroids[i].elements);
+                    asteroids[i].width = dimensions.width;
+                    asteroids[i].height = dimensions.height;
+                }
+                
+                player = new player(WIDTH/2,HEIGHT/2,[7,5],{x:0,y:0});
+                console.debug(player);
                 
                 //console.debug(get_polygon_center(asteroid1[0]));
 
                 setInterval(draw, 10);
                 setInterval(update, 10);
+                setInterval(debug, 1000);
                 return true;
             }
 
@@ -231,7 +285,7 @@
             }
 
             function clear() {
-                ctx.clearRect(0, 0, WIDTH, HEIGHT);
+                ctx.clearRect(-WIDTH/2, -HEIGHT/2, WIDTH+WIDTH/2, HEIGHT+HEIGHT/2);
             }
 
             document.onkeydown = function (e) {
@@ -265,6 +319,40 @@
                     asteroids[i].x += asteroids[i].velocity[0];
                     asteroids[i].y += asteroids[i].velocity[1];
                 }
+                if(keyState[37] == true)//LEFT
+                {
+                    player.angle -= 2;
+                }; 
+                if(keyState[38] == true)//UP
+                {
+                    var a = Math.cos(player.angle*(Math.PI/180));
+                    var b = Math.sin(player.angle*(Math.PI/180));
+                    player.velocity.x += a/Math.sqrt(a*a+b*b)*0.02;
+                    player.velocity.y += b/Math.sqrt(a*a+b*b)*0.02;
+                };
+                if(keyState[39] == true)//RIGHT
+                {
+                    player.angle += 2;
+                };
+                player.x += player.velocity.x;
+                player.y += player.velocity.y;
+                
+                if(player.x > WIDTH)
+                {
+                    player.x = 0;
+                }
+                else if(player.x <= 0)
+                {
+                    player.x = WIDTH;
+                }
+                else if(player.y > HEIGHT)
+                {
+                    player.y = 0;
+                }
+                else if(player.y < 0)
+                {
+                    player.y = HEIGHT;
+                }  
             }
 
             function draw() {
@@ -283,8 +371,13 @@
                 }
 
                 for(var i=0;i<asteroids.length;i++)
-                {                    
-                    drawObject(asteroids[i].x, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);    
+                {
+                    //console.debug(asteroids[i].x, asteroids[i].y);
+                    drawObject(asteroids[i].x, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    //drawObject(asteroids[i].x+WIDTH, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    //drawObject(asteroids[i].x+WIDTH, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    //drawObject(asteroids[i].x, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
+                    
                     drawObject(asteroids[i].x+WIDTH, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
                     drawObject(asteroids[i].x-WIDTH, asteroids[i].y, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
                     drawObject(asteroids[i].x, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
@@ -295,15 +388,16 @@
                     drawObject(asteroids[i].x+HEIGHT, asteroids[i].y+HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
                     drawObject(asteroids[i].x-HEIGHT, asteroids[i].y-HEIGHT, asteroids[i].elements, asteroids[i].size, asteroids[i].center);
                 }
+                drawObject(player.x,player.y,player.elements,1,player.center,player.angle%360);
 
                 ctx.fillStyle = '#3C6';
                 ctx.fillText("asteroids: "+asteroids.length, 10, 20);
             }
+            function debug()
+            {
+                console.debug(player.angle,player.velocity.x,player.velocity.y,player.x,player.y,player.center);
+            }
             init();
-            //for(var i = 0; i<asteroids.length;i++)
-            //{
-            //    console.debug(asteroids[i]);
-            //}
         </script>
     </body>
 </html>
